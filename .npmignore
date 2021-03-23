@@ -1,0 +1,6 @@
+src/
+tsconfig.json
+.github/
+.eslintrc.js
+.eslintignore
+.gitlab-ci.yml

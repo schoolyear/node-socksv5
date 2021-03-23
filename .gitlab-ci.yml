@@ -1,0 +1,38 @@
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  paths:
+    node_modules/
+
+build:
+  image: node:lts-alpine
+  stage: build
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+      - types/
+
+lint:
+  image: node:lts-alpine
+  stage: test
+  script:
+    - npm run lint
+
+publish:
+  image: node:lts-alpine
+  stage: deploy
+  dependencies:
+    - build
+  before_script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+  script:
+    - npm publish --access=public
+  only:
+    - tags
+    - triggers

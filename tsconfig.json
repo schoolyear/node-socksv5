@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+		"module": "commonjs",
+   		"target": "esnext",
+		"sourceMap": false,
+		"removeComments": true,
+		"outDir": "dist",
+		"declaration": true,
+		"declarationDir": "types"
+	},
+	"files": [
+		"./src/index.ts"
+	]
+}
