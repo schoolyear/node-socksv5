@@ -8,6 +8,7 @@ import { Duplex } from "stream";
 interface IOptions {
 	auths?: IAuth[];
 	maxConnections?: number;
+    lookupFunction?: net.LookupFunction
 }
 
 export enum Version {
@@ -193,6 +194,7 @@ export class Server extends EventEmitter {
 			socket.connect({
 				host: address.host,
 				port: address.port,
+                lookup: this.options.lookupFunction,
 			}, () => {
 				resolve(socket);
 			});
