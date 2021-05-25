@@ -34,7 +34,7 @@ export interface IConnectionInfo {
 export type ConnectionListener = (info: IConnectionInfo, accept: () => Promise<Duplex>, deny: () => void) => void;
 
 export class Server extends EventEmitter {
-	protected serverSocket: net.Server;
+	serverSocket: net.Server;
 	protected connections = 0;
 	protected options: IOptions;
 
