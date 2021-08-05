@@ -162,7 +162,6 @@ export class Server extends EventEmitter {
 		});
 		if (!socket.writable) {
 			connection.destroy();
-			throw new Error("socket already closed");
 		}
 		await this.sendSuccessConnection(socket, destination);
 		socket.pipe(connection).pipe(socket);
