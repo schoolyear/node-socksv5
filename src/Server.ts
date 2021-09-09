@@ -5,10 +5,16 @@ import Destination from "./Destination";
 import { IAuth } from "./Auth";
 import { Duplex } from "stream";
 
-interface IOptions {
+interface SetupIOptions {
 	auths?: IAuth[];
 	maxConnections?: number;
-    lookupFunction?: net.LookupFunction
+	lookupFunction?: net.LookupFunction
+}
+
+interface IOptions {
+	auths: IAuth[];
+	maxConnections: number;
+	lookupFunction?: net.LookupFunction
 }
 
 export enum Version {
@@ -26,8 +32,8 @@ export interface IConnectionInfo {
 	command: Command;
 	destination: Destination;
 	source: {
-		ip: string;
-		port: number;
+		ip?: string;
+		port?: number;
 	};
 }
 
@@ -36,23 +42,35 @@ export type ConnectionListener = (info: IConnectionInfo, accept: () => Promise<D
 export class Server extends EventEmitter {
 	serverSocket: net.Server;
 	protected connections = 0;
-	protected options: IOptions;
+	protected options: IOptions = {
+		maxConnections: Infinity,
+		auths: [],
+	};
 
-	public constructor(options?: IOptions, listener?: ConnectionListener) {
+	public constructor(options?: SetupIOptions, listener?: ConnectionListener) {
 		super();
-		if (options === undefined) {
-			options = {};
+		if (options?.maxConnections !== undefined) {
+			this.options.maxConnections = options?.maxConnections
 		}
-		if (options.maxConnections === undefined) {
-			options.maxConnections = Infinity;
+		if (options?.auths !== undefined) {
+			this.options.auths = options?.auths
 		}
-		if (options.auths === undefined) {
-			options.auths = [];
-		}
-		this.options = options;
+
 		if (listener) {
 			this.on("connection", listener);
 		}
+
+		this.serverSocket = new net.Server((socket) => {
+			if (this.connections >= this.options.maxConnections) {
+				socket.destroy();
+			}
+			this.connections++;
+			socket.once("close", () => {
+				this.connections--;
+			});
+			this.onConnection(socket);
+		});
+
 		this.init();
 	}
 
@@ -65,16 +83,6 @@ export class Server extends EventEmitter {
 	}
 
 	protected init(): void {
-		this.serverSocket = new net.Server((socket) => {
-			if (this.connections >= this.options.maxConnections) {
-				socket.destroy();
-			}
-			this.connections++;
-			socket.once("close", () => {
-				this.connections--;
-			});
-			this.onConnection(socket);
-		});
 		this.serverSocket.on("error", (err) => {
 			this.emit("error", err);
 		});
@@ -98,7 +106,9 @@ export class Server extends EventEmitter {
 		});
 		parser.on("request", (cmd: Command, destination: Destination) => {
 			parser.stop();
-			this.onRequest(socket, cmd, destination);
+			this.onRequest(socket, cmd, destination).catch((err) => {
+				this.emit("onRequest", err)
+			});
 		});
 	}
 
@@ -148,24 +158,35 @@ export class Server extends EventEmitter {
 		if (this.listenerCount("connection")) {
 			this.emit("connection", info, accept, deny);
 		} else {
-			accept();
-		}		
+			await accept();
+		}
 	}
 
-	protected async processConnection(socket: net.Socket, destination: Destination): Promise<Duplex> {
-		const connection = await this.connect(destination);
-		connection.on("close", () => {
-			socket.destroy();
-		});
-		connection.on("error", () => {
-			socket.destroy();
-		});
-		if (!socket.writable) {
-			connection.destroy();
-		}
-		await this.sendSuccessConnection(socket, destination);
-		socket.pipe(connection).pipe(socket);
-		return connection;
+	protected async processConnection(socket: net.Socket, destination: Destination): Promise<void> {
+		return new Promise((resolve, reject) => {
+			this.connect(destination).catch((err) => reject(err)).then((connection) => {
+				if (!connection) { reject(); return; }
+
+				connection.on("close", () => {
+					socket.destroy();
+				});
+				connection.on("error", (err) => {
+					this.emit("process connection", err)
+					socket.destroy();
+				});
+
+				if (!socket.writable) {
+					connection.destroy();
+					return;
+				}
+
+				this.sendSuccessConnection(socket, destination).catch((err) => reject(err)).then(() => {
+					socket.pipe(connection).pipe(socket);
+					resolve();
+				});
+
+			});
+		})
 	}
 
 	protected sendSuccessConnection(socket: net.Socket, destination: Destination): Promise<void> {
@@ -193,7 +214,7 @@ export class Server extends EventEmitter {
 			socket.connect({
 				host: address.host,
 				port: address.port,
-                lookup: this.options.lookupFunction,
+				lookup: this.options.lookupFunction,
 			}, () => {
 				resolve(socket);
 			});

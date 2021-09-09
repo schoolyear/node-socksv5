@@ -44,7 +44,7 @@ export default class ServerParser extends EventEmitter {
 		}
 	}
 
-	private parseHandshake(chunk: Buffer): number[] {
+	private parseHandshake(chunk: Buffer): void {
 		let i = 0;
 		const version = chunk.readUInt8(i++) as Version;
 		if (version !== Version.V5) {
