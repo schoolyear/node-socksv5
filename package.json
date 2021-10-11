@@ -1,7 +1,7 @@
 {
   "name": "node-socksv5-dns-looukp",
   "description": "SOCKS protocol version 5 server and client implementations for node.js",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "author": {
     "name": "Amir.h Yeganemehr",
     "email": "yeganemehr@jeyserver.com"
