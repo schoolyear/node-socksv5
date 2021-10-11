@@ -61,6 +61,7 @@ export class Server extends EventEmitter {
 		}
 
 		this.serverSocket = new net.Server((socket) => {
+			socket.on("error", (err) => this.emit("error", err))
 			if (this.connections >= this.options.maxConnections) {
 				socket.destroy();
 			}
@@ -68,6 +69,7 @@ export class Server extends EventEmitter {
 			socket.once("close", () => {
 				this.connections--;
 			});
+
 			this.onConnection(socket);
 		});
 
